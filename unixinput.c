@@ -110,6 +110,8 @@ extern int cw_threshold;
 extern bool cw_disable_auto_threshold;
 extern bool cw_disable_auto_timing;
 
+extern int scopesize;
+
 void quit(void);
 
 /* ---------------------------------------------------------------------- */
@@ -598,6 +600,7 @@ static const char usage_str[] = "\n"
         "  -y         : CW: Disable auto timing detection\n"
         "  --timestamp: Add a time stamp in front of every printed line\n"
         "  --label    : Add a label to the front of every printed line\n"
+        "  --scopesize: 1=512x256, 2=1024x512\n"
         "   Raw input requires one channel, 16 bit, signed integer (platform-native)\n"
         "   samples at the demodulator's input sampling rate, which is\n"
         "   usually 22050 Hz. Raw input is assumed and required if piped input is used.\n";
@@ -618,6 +621,7 @@ int main(int argc, char *argv[])
       {
         {"timestamp", no_argument, &timestamp, 1},
         {"label", required_argument, NULL, 'l'},
+        {"scopesize", required_argument, NULL, 'Z'},
         {"charset", required_argument, NULL, 'C'},
         {0, 0, 0, 0}
       };
@@ -795,6 +799,10 @@ intypefound:
             
 	case 'l':
 	    label = optarg;
+	    break;
+
+	case 'Z':
+	    scopesize = atoi(optarg);
 	    break;
         }
     }

@@ -41,11 +41,18 @@
 
 /* ---------------------------------------------------------------------- */
 
-#define WIDTH 512
-#define HEIGHT 256
+int scopesize = 1;
+
+#define POS_X 100
+#define POS_Y 100
+int window_width=512;
+int window_height=256;
+int PIX_WIDTH=0;
+//#define window_width 512
+//#define window_height 256
 
 union comdata {
-	short s[WIDTH];
+	short s[512];
 	unsigned char b[0];
 };
 
@@ -214,11 +221,11 @@ static void child_win_init(void)
         col_trace = BlackPixel(display, 0);
         attr.background_pixel = col_background;
 	window = XCreateWindow(display, XRootWindow(display, 0),
-			       200, 200, WIDTH, HEIGHT, 5, 
+			       POS_X, POS_Y, window_width, window_height, 5, 
 			       DefaultDepth(display, 0),
 			       InputOutput, DefaultVisual(display, 0),
 			       CWBackPixel, &attr);
-        if (!(pixmap = XCreatePixmap(display, window, WIDTH, HEIGHT,
+        if (!(pixmap = XCreatePixmap(display, window, window_width, window_height,
                                      DefaultDepth(display, 0)))) {
                 fprintf(stderr, "X: unable to open offscreen pixmap\n");
                 exit(1);
@@ -232,8 +239,8 @@ static void child_win_init(void)
 	 * Do not allow the window to be resized
 	 */
 	memset(&sizehints, 0, sizeof(sizehints));
-	sizehints.min_width = sizehints.max_width = WIDTH;
-	sizehints.min_height = sizehints.max_height = HEIGHT;
+	sizehints.min_width = sizehints.max_width = window_width;
+	sizehints.min_height = sizehints.max_height = window_height;
 	sizehints.flags = PMinSize | PMaxSize;
 	XSetWMNormalHints(display, window, &sizehints);
 	XMapWindow(display, window);
@@ -242,7 +249,7 @@ static void child_win_init(void)
 
 /* ---------------------------------------------------------------------- */
 
-#define YCOORD(x) (((x)>>8)+(HEIGHT/2))
+#define YCOORD(x) (((x)>>8)*scopesize+(window_height/2))
 
 static void child_process(void)
 {
@@ -282,22 +289,32 @@ static void child_process(void)
 		XSetState(display, gc, col_background, col_background,
 			  GXcopy, AllPlanes);
                 XFillRectangle(display, pixmap, gc, 0, 0, 
-                               WIDTH, HEIGHT);
+                               window_width, window_height);
 		/*
 		 * draw zero line
 		 */
 		XSetForeground(display, gc, col_zeroline);
-		XDrawLine(display, pixmap, gc, 0, YCOORD(0), WIDTH,
+		XDrawLine(display, pixmap, gc, 0, YCOORD(0), window_width,
 			  YCOORD(0));
 		/*
 		 * draw input
 		 */
 		XSetForeground(display, gc, col_trace);
-		for (i = 1; i < WIDTH; i++)
-                XDrawLine(display, pixmap, gc, i-1, YCOORD(d.s[i-1]),
-                          i, YCOORD(d.s[i]));
+if (PIX_WIDTH) {
+		for (i = 1; i < window_width/scopesize; i++) {
+	                XDrawLine(display, pixmap, gc, i*2-1, YCOORD(d.s[i-1]),
+				  i*2, YCOORD(d.s[i]));
+			XDrawLine(display, pixmap, gc, i*2, YCOORD(d.s[i-1]),
+				  i*2+1, YCOORD(d.s[i]));
+		}
+} else {
+		for (i = 1; i < window_width/scopesize; i++)
+                XDrawLine(display, pixmap, gc, i*scopesize-1, YCOORD(d.s[i-1]),
+                          i*scopesize, YCOORD(d.s[i]));
+}
+
 		XCopyArea(display, pixmap, window, gc, 0, 0, 
-			  WIDTH, HEIGHT, 0, 0);
+			  window_width, window_height, 0, 0);
 		/* XSync(display, 0); */
 	}
         XDestroyWindow(display, window);
@@ -343,6 +360,17 @@ void xdisp_terminate(int cnum)
 int xdisp_start(void)
 {
 	unsigned int cnum;
+
+	switch (scopesize) {
+		case 2:
+		case 3:
+			window_width*=scopesize;
+			window_height*=scopesize;
+//			PIX_WIDTH=2;
+			break;
+		default:
+			break;
+	}
 
 	/*
 	 * find free client struct
@@ -414,7 +442,7 @@ int xdisp_update(int cnum, float *f)
 		return 0;
 	if (c != 'r')
 		return 0;
-	for (sp = d.s, i = 0; i < WIDTH; i++, sp++, f++) {
+	for (sp = d.s, i = 0; i < window_width; i++, sp++, f++) {
 		if (*f >= 1)
 			*sp = 32767;
 		else if (*f <= -1)
